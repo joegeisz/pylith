@@ -21,7 +21,6 @@
 
 #include "pylith/feassemble/IntegratorDomain.hh" //
 
-
 class pylith::feassemble::IntegratorDomainCEED : public pylith::feassemble::IntegratorDomain {
     friend class TestIntegratorDomain; // unit testing
 

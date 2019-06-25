@@ -24,6 +24,7 @@
 #include "pylith/materials/AuxiliaryFactoryElasticity.hh" // USES AuxiliaryFactoryElasticity
 #include "pylith/materials/DerivedFactoryElasticity.hh" // USES DerivedFactoryElasticity
 #include "pylith/feassemble/IntegratorDomain.hh" // USES IntegratorDomain
+#include "pylith/feassemble/IntegratorDomainCEED.hh" // USES IntegratorDomain
 #include "pylith/topology/Mesh.hh" // USES Mesh
 #include "pylith/topology/Field.hh" // USES Field::SubfieldInfo
 #include "pylith/topology/FieldOps.hh" // USES FieldOps
@@ -151,7 +152,13 @@ pylith::materials::Elasticity::createIntegrator(const pylith::topology::Field& s
     PYLITH_METHOD_BEGIN;
     PYLITH_COMPONENT_DEBUG("createIntegrator(solution="<<solution.label()<<")");
 
-    pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomain(this);assert(integrator);
+    PetscBool use_ceed = PETSC_FALSE;
+    PetscOptionsGetBool(NULL,NULL,"-elasticity_ceed",&use_ceed,NULL);
+    if (use_ceed) {
+      pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomainCEED(this);assert(integrator);
+    } else {
+      pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomain(this);assert(integrator);
+    }
     integrator->setMaterialId(getMaterialId());
 
     _setKernelsRHSResidual(integrator, solution);
