@@ -29,11 +29,22 @@
 
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Default constructor.
+pylith::feassemble::IntegratorDomainCEED::IntegratorDomainCEED(pylith::problems::Physics* const physics) :
+   	IntegratorDomain(physics)
+    {
+    printf("constructing CEED Integrator Domain\n");
+} // constructor
+
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Initialize integration domain, auxiliary field, and derived field. Update observers.
 void
 pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Field& solution) {
 
-    printf("initialize IntegratorDomainCEED");
+    printf("initialize IntegratorDomainCEED\n");
+
+    this->IntegratorDomain::initialize(solution);
 
 } // initialize
 

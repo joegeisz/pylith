@@ -23,6 +23,7 @@ subpkginclude_HEADERS = \
 	PhysicsImplementation.hh \
 	Integrator.hh \
 	IntegratorDomain.hh \
+	IntegratorDomainCEED.hh \
 	IntegratorBoundary.hh \
 	IntegratorInterface.hh \
 	UpdateStateVars.hh \

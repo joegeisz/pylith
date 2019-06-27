@@ -27,6 +27,10 @@ class pylith::feassemble::IntegratorDomainCEED : public pylith::feassemble::Inte
     // PUBLIC MEMBERS //////////////////////////////////////////////////////////////////////////////////////////////////
 public:
 
+	/// Constructor
+    IntegratorDomainCEED(pylith::problems::Physics* const physics);
+
+    /// Initialize
     void initialize(const pylith::topology::Field& solution);
 
 }; // IntegratorDomainCEED

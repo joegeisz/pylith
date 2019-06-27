@@ -24,7 +24,7 @@
 #include "pylith/materials/AuxiliaryFactoryElasticity.hh" // USES AuxiliaryFactoryElasticity
 #include "pylith/materials/DerivedFactoryElasticity.hh" // USES DerivedFactoryElasticity
 #include "pylith/feassemble/IntegratorDomain.hh" // USES IntegratorDomain
-#include "pylith/feassemble/IntegratorDomainCEED.hh" // USES IntegratorDomain
+#include "pylith/feassemble/IntegratorDomainCEED.hh" // USES IntegratorDomainCEED
 #include "pylith/topology/Mesh.hh" // USES Mesh
 #include "pylith/topology/Field.hh" // USES Field::SubfieldInfo
 #include "pylith/topology/FieldOps.hh" // USES FieldOps
@@ -155,20 +155,35 @@ pylith::materials::Elasticity::createIntegrator(const pylith::topology::Field& s
     PetscBool use_ceed = PETSC_FALSE;
     PetscOptionsGetBool(NULL,NULL,"-elasticity_ceed",&use_ceed,NULL);
     if (use_ceed) {
-      pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomainCEED(this);assert(integrator);
+        pylith::feassemble::IntegratorDomainCEED* integrator = new pylith::feassemble::IntegratorDomainCEED(this);assert(integrator);
+        
+        integrator->setMaterialId(getMaterialId());
+
+        _setKernelsRHSResidual(integrator, solution);
+        _setKernelsRHSJacobian(integrator, solution);
+        _setKernelsLHSResidual(integrator, solution);
+        _setKernelsLHSJacobian(integrator, solution);
+        // No state variables.
+        _setKernelsDerivedField(integrator, solution);
+
+        PYLITH_METHOD_RETURN(integrator);
+
     } else {
-      pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomain(this);assert(integrator);
+        pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomain(this);assert(integrator);
+
+        integrator->setMaterialId(getMaterialId());
+
+        _setKernelsRHSResidual(integrator, solution);
+         _setKernelsRHSJacobian(integrator, solution);
+        _setKernelsLHSResidual(integrator, solution);
+        _setKernelsLHSJacobian(integrator, solution);
+        // No state variables.
+        _setKernelsDerivedField(integrator, solution);
+
+        PYLITH_METHOD_RETURN(integrator);
+
     }
-    integrator->setMaterialId(getMaterialId());
 
-    _setKernelsRHSResidual(integrator, solution);
-    _setKernelsRHSJacobian(integrator, solution);
-    _setKernelsLHSResidual(integrator, solution);
-    _setKernelsLHSJacobian(integrator, solution);
-    // No state variables.
-    _setKernelsDerivedField(integrator, solution);
-
-    PYLITH_METHOD_RETURN(integrator);
 } // createIntegrator
 
 
