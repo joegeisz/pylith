@@ -1,6 +1,10 @@
 
-#ifndef isotropiclinearelasticityceed_h
-#define isotropiclinearelasticityceed_h
+#ifndef isotropiclinearelasticityceed_hh
+#define isotropiclinearelasticityceed_hh
+
+#include "fekernelsfwd.hh" // forward declarations
+
+#include "pylith/utils/types.hh"
 
 
 
@@ -15,7 +19,7 @@ struct CoordinatesContext {
 	CeedInt dim;
 	///...
 
-}///end CoordinatesContext definition
+};///end CoordinatesContext definition
 
 struct ProblemContext {
 
@@ -29,7 +33,7 @@ struct ProblemContext {
 	CeedScalar SM;
 	///...
 
-}///end ProblemContext definition
+};///end ProblemContext definition
 
 
 
@@ -71,7 +75,7 @@ static int Setup(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *
 	//...
 
 	//loop over quadrature points, depending on problem dimensionality
-	if(context.dim == 2){
+	if(context->dim == 2){
 		//------------------------------------
 		//Calculate 2D inverse
 		//------------------------------------
@@ -95,7 +99,7 @@ static int Setup(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *
     	}//end 2d for loop
 	}//end 2d case
 
-	else if(context.dim == 3){
+	else if(context->dim == 3){
 		//------------------------------------
 		// Calculate 3d inverse
 		//------------------------------------
@@ -139,7 +143,7 @@ static int Setup(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *
 	}//end 3d case
 
 	else{
-		printf("Dimension not valid\n")
+		printf("Dimension not valid\n");
 	}
 	//end loop over quadrature points
 
@@ -178,7 +182,7 @@ static int ApplyMass(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScal
 	//...
 
 	//loop over quadrature points
-	if(context.dim == 2){
+	if(context->dim == 2){
 		for(int i=0; i<Q; i++){
 			//multiply weights
 		
@@ -187,7 +191,7 @@ static int ApplyMass(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScal
 
 		}//end loop over quadrature points
 	}
-	else if(context.dim = 3){
+	else if(context->dim == 3){
 		for(int i=0; i<Q; i++){
 			//multiply weights
 		
@@ -316,7 +320,7 @@ Math:
 */
 /////////////////////////////////////////////////////////////////////////////////////////
 
-static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *const *out) {
+static int IsotropicLinearElasticityQFunction(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *const *out) {
 
 	//name the parameters from ctx
 	struct ProblemContext *context = (struct ProblemContext *)ctx;
@@ -340,8 +344,8 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 	//------------------------------------
 	//2D Linear Elastic equations, plane strain
 	//------------------------------------
-	if(context.dim==2){
-			for(int i = 0; i<Q, i++){
+	if(context->dim==2){
+			for(int i = 0; i<Q; i++){
 			//Linear Elastic equations for 2d Plane Strain problem
 			const CeedScalar u[2] = { disp[i+0*Q], disp[i+1*Q] };
 
@@ -349,7 +353,7 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 											{	graddisp[i+2*Q], graddisp[i+3*Q] }	};
 
 			//jacobian/coordinate transform data
-			const CeedScalar wJ[2][2] = {	{qdata[i+0*Q], qdata[i+1*Q]}
+			const CeedScalar wJ[2][2] = {	{qdata[i+0*Q], qdata[i+1*Q]},
 											{qdata[i+2*Q], qdata[i+3*Q]} };
 
 			//strain tensor
@@ -358,16 +362,16 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 										.5*(du[0][1]+du[1][0])	};
 
 			//Relate Stress and strain
-			const CeedScalar mu = context.SM;
-			const CeedScalar lam = context.BM - (2/3)*context.SM;
+			const CeedScalar mu = context->SM;
+			const CeedScalar lam = context->BM - (2/3)*context->SM;
 
-			const CeedScalar cijkl[3][3] = { 	{	(lam+2*mu),	lam,		0	}
-												{	lam,		(lam+2*mu)	0	}
+			const CeedScalar cijkl[3][3] = { 	{	(lam+2*mu),	lam,		0	},
+												{	lam,		(lam+2*mu),	0	},
 												{	0,			0,			mu 	}	};
 
 
 			//stress tensor
-			const CeedScalar sigma[3];
+			CeedScalar sigma[3];
 
 			//matrix multiply cijkl*E = sigma
 			for(int j = 0; j<3; j++){
@@ -381,7 +385,7 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 												{sigma[2], sigma[1]}	};
 
 			//jacobian coordinate adjust
-			const CeedScalar dvterms[2][2];	
+			CeedScalar dvterms[2][2];	
 										
 			for(int j = 0; j<2; j++){
 				for(int k = 0; k<2; k++){
@@ -399,8 +403,8 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 			dv[i+0*Q] = dvterms[0][0];
 			dv[i+1*Q] = dvterms[0][1];
 
-			dv[i+2*Q] = dvterm[1][0];
-			dv[i+3*Q] = dvterm[1][1];
+			dv[i+2*Q] = dvterms[1][0];
+			dv[i+3*Q] = dvterms[1][1];
 
 
 			}//end 2d foor loop
@@ -409,11 +413,11 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 	//------------------------------------
 	//Full 3d Linear Elastic equations
 	//------------------------------------
-	else if(context.dim == 3){
+	else if(context->dim == 3){
 		for(int i=0; i<Q; i++){
 		
 			//Displacement
-			const CeedScalar u[3] = { disp[i+0*Q], disp[i+1*Q], dis[i+2*Q] };
+			const CeedScalar u[3] = { disp[i+0*Q], disp[i+1*Q], disp[i+2*Q] };
 
 			//Grad Displacement
 			const CeedScalar du[3][3] = { 	{graddisp[i+0*Q], graddisp[i+1*Q], graddisp[i+2*Q]},
@@ -451,8 +455,8 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 
 				//Relate Stress and Strain Tensors
 
-				const CeedScalar a = 3*context.BM;
-				const CeedScalar b = 2*context.SM;
+				const CeedScalar a = 3*context->BM;
+				const CeedScalar b = 2*context->SM;
 
 
 				//Stress Tensor
@@ -462,19 +466,19 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 												{	b*E[2][0], 				b*E[2][1],				(a-b)*e + b*E[2][2]		}};
 				*/
 
-				const CeedScalar sigma[3][3] = E;
+				CeedScalar sigma[3][3] = {{E[0][0], E[0][1], E[0][2]},{E[1][0], E[1][1], E[1][2]},{E[2][0], E[2][1], E[2][2]}};;
 
 				for(int j = 0; j<3; j++){
-					for(int k = 0;, k<3; k++){
+					for(int k = 0; k<3; k++){
 						sigma[j][k] *= b;
 						if(j==k){sigma[j][k] += (a-b)*e;}
 					}
 				}
 
-				const CeedScalar dvterms[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+				CeedScalar dvterms[3][3]={{0,0,0},{0,0,0},{0,0,0}};
 
 				for(int j = 0; j<3; j++){
-					for(int k = 0;, k<3; k++){
+					for(int k = 0; k<3; k++){
 						dvterms[j][k] -= sigma[j][k]*wJ[k][j];
 					}
 				}
@@ -521,19 +525,18 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 
 
 				//Relate Stress and strain
-				const CeedScalar mu = context.SM;
-				const CeedScalar lam = context.BM - (2/3)*context.SM;
+				const CeedScalar mu = context->SM;
+				const CeedScalar lam = context->BM - (2/3)*context->SM;
 
-				const CeedScalar Dij[6][6] = 	{{	2*mu+lam		lam			lam			0	0	0	0	},
-												{	lam				2*mu+lam	lam			0	0	0	0	},
-												{	lam				lam			2*mu+lam	0	0	0	0	},
-												{	0				0			0			mu 	0	0	0	},
-												{	0				0			0			0 	mu	0	0	},
-												{	0				0			0			0 	0	mu	0	},
-												{	0				0			0			0 	0	0	mu 	}};
+				const CeedScalar Dij[6][6] = 	{{	2*mu+lam,		lam,		lam,		0,	0,	0	},
+												{	lam,			2*mu+lam,	lam,		0,	0,	0	},
+												{	lam,			lam,		2*mu+lam,	0,	0,	0	},
+												{	0,				0,			0,			mu, 0,	0	},
+												{	0,				0,			0,			0, 	mu,	0	},
+												{	0,				0,			0,			0, 	0,	mu	}};
 
 				//Stress Tensor
-				const CeedScalar sigma[6];
+				CeedScalar sigma[6];
 
 				for(int j=0; j<6; j++){
 					sigma[j] = 0;
@@ -544,15 +547,15 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 
 				const CeedScalar sigma2[3][3] ={{sigma[0], sigma[5], sigma[4]},
 												{sigma[5], sigma[1], sigma[3]},
-												{sigma[4], sigma[3], sigma[2]}}
+												{sigma[4], sigma[3], sigma[2]}};
 
 
 
-				const CeedScalar dvterms[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+				CeedScalar dvterms[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
 
 				for(int j = 0; j<3; j++){
-					for(int k = 0;, k<3; k++){
-						dvterms[j][k] -= sigma[j][k]*wJ[k][j];
+					for(int k = 0; k<3; k++){
+						dvterms[j][k] -= sigma2[j][k]*wJ[k][j];
 					}
 				}
 
@@ -594,7 +597,7 @@ class pylith::fekernels::IsotropicLinearElasticityCEED {
 
 public:
 
-	static void CEED_integrate();
+	static void CEED_integrate(int dim);
 
 
 };
