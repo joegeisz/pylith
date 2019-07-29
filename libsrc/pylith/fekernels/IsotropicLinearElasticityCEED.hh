@@ -77,19 +77,21 @@ static int Setup(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *
 		//------------------------------------
 		for(int i=0; i<Q; i++){
 			
+
 			//Setup
 			const CeedScalar a = J[i+0*Q];
 			const CeedScalar b = J[i+1*Q];
 			const CeedScalar c = J[i+2*Q];
 			const CeedScalar d = J[i+3*Q];
-			//const CeedScalar detJ = J[i+Q*0]*J[i+Q*3]-J[i+Q*2]*J[i+Q*1];
+			const CeedScalar detJ = J[i+Q*0]*J[i+Q*3]-J[i+Q*2]*J[i+Q*1];
+			const CeedScalar woj = w[i]/detJ;
 
 			// Qdata
-			// This is the inverse of the Jacobian times its determinant times the weight:
-    		qdata[i+ 0*Q] = w[i] * d;
-			qdata[i+ 1*Q] = w[i] * -b;
-			qdata[i+ 2*Q] = w[i] * -c;
-			qdata[i+ 3*Q] = w[i] * a;
+			// This is the inverse of the Jacobian times the weight:
+    		qdata[i+ 0*Q] = woj * d ;
+			qdata[i+ 1*Q] = woj * -b;
+			qdata[i+ 2*Q] = woj * -c;
+			qdata[i+ 3*Q] = woj * a;
     	}//end 2d for loop
 	}//end 2d case
 
@@ -118,20 +120,21 @@ static int Setup(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *
 		    const CeedScalar A31 = J21*J32 - J22*J31;
 		    const CeedScalar A32 = J12*J31 - J11*J32;
 		    const CeedScalar A33 = J11*J22 - J12*J21;
-		    //const CeedScalar detJ = J11*A11 + J21*A12 + J31*A13;
+		    const CeedScalar detJ = J11*A11 + J21*A12 + J31*A13;
+		    const CeedScalar woj = w[i]/detJ;
 
 
     		// Qdata
-			// This is the inverse of the Jacobian times its determinant times the weight:
-			qdata[i+ 0*Q] = w[i] * A11;
-			qdata[i+ 1*Q] = w[i] * A12;
-			qdata[i+ 2*Q] = w[i] * A13;
-			qdata[i+ 3*Q] = w[i] * A21;
-			qdata[i+ 4*Q] = w[i] * A22;
-			qdata[i+ 5*Q] = w[i] * A23;
-			qdata[i+ 6*Q] = w[i] * A31;
-			qdata[i+ 7*Q] = w[i] * A32;
-			qdata[i+ 8*Q] = w[i] * A33;
+			// This is the inverse of the Jacobian times the weight:
+			qdata[i+ 0*Q] = woj * A11;
+			qdata[i+ 1*Q] = woj * A12;
+			qdata[i+ 2*Q] = woj * A13;
+			qdata[i+ 3*Q] = woj * A21;
+			qdata[i+ 4*Q] = woj * A22;
+			qdata[i+ 5*Q] = woj * A23;
+			qdata[i+ 6*Q] = woj * A31;
+			qdata[i+ 7*Q] = woj * A32;
+			qdata[i+ 8*Q] = woj * A33;
 		}//end 3d for loop
 	}//end 3d case
 
@@ -177,10 +180,8 @@ static int ApplyMass(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScal
 	//loop over quadrature points
 	if(context.dim == 2){
 		for(int i=0; i<Q; i++){
-			/*
 			//multiply weights
-			*/
-
+		
 	    	v[i+0*Q] = w[i+0*Q] * u[i+0*Q];
 	    	v[i+1*Q] = w[i+1*Q] * u[i+1*Q];
 
@@ -188,10 +189,8 @@ static int ApplyMass(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScal
 	}
 	else if(context.dim = 3){
 		for(int i=0; i<Q; i++){
-			/*
 			//multiply weights
-			*/
-
+		
 	    	v[i+0*Q] = w[i+0*Q] * u[i+0*Q];
 	    	v[i+1*Q] = w[i+1*Q] * u[i+1*Q];
 	    	v[i+2*Q] = w[i+2*Q] * u[i+2*Q];
@@ -346,26 +345,50 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 			//Linear Elastic equations for 2d Plane Strain problem
 			const CeedScalar u[2] = { disp[i+0*Q], disp[i+1*Q] };
 
-			const CeedScalar du[4] = { 	graddisp[i+0*Q], 
-										graddisp[i+1*Q], 
-										graddisp[i+2*Q], 
-										graddisp[i+3*Q] };
+			const CeedScalar du[2][2] = { 	{	graddisp[i+0*Q], graddisp[i+1*Q]},
+											{	graddisp[i+2*Q], graddisp[i+3*Q] }	};
+
+			//jacobian/coordinate transform data
+			const CeedScalar wJ[2][2] = {	{qdata[i+0*Q], qdata[i+1*Q]}
+											{qdata[i+2*Q], qdata[i+3*Q]} };
 
 			//strain tensor
-			const CeedScalar E[3] = { 	du[0],
-										du[3],
-										.5*(du[1]+du[2])	};
+			const CeedScalar E[3] = { 	du[0][0],
+										du[1][1],
+										.5*(du[0][1]+du[1][0])	};
 
 			//Relate Stress and strain
 			const CeedScalar mu = context.SM;
 			const CeedScalar lam = context.BM - (2/3)*context.SM;
 
+			const CeedScalar cijkl[3][3] = { 	{	(lam+2*mu),	lam,		0	}
+												{	lam,		(lam+2*mu)	0	}
+												{	0,			0,			mu 	}	};
 
-			const CeedScalar sigma[4] = {	(lam+2*mu)E[0] + lam*E[1],		//Sigma11
-											lam*E[0] + (lam+2*mu)E[1],		//Sima22
-											2*mu*E[3],						//Sigma12
-											lam*(E[0]+E[1])					//Sigma33 ???
-												};
+
+			//stress tensor
+			const CeedScalar sigma[3];
+
+			//matrix multiply cijkl*E = sigma
+			for(int j = 0; j<3; j++){
+				sigma[j] = 0;
+				for(int k = 0; k<3; k++){
+					sigma[j] += E[k]*cijkl[j][k];
+				}
+			}
+
+			const CeedScalar sigma2[2][2] = { 	{sigma[0], sigma[2]},
+												{sigma[2], sigma[1]}	};
+
+			//jacobian coordinate adjust
+			const CeedScalar dvterms[2][2];	
+										
+			for(int j = 0; j<2; j++){
+				for(int k = 0; k<2; k++){
+					dvterms[j][k] = sigma2[j][k]*wJ[j][k];
+				}
+			}
+
 			//set outputs
 
 			//body force dealt with elsewhere, only need sigma term
@@ -373,13 +396,11 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 			v[i+1*Q] = 0;
 			
 			//-sigmaij*vi,j
-			dv[i+0*Q] = -(sigma[0]*wBJ[0]+sigma[2]*wBJ[1]); //v11
-			dv[i+1*Q] = -(sigma[2]*wBJ[0]+sigma[3]*wBJ[1]); //v12
+			dv[i+0*Q] = dvterms[0][0];
+			dv[i+1*Q] = dvterms[0][1];
 
-			dv[i+3*Q] = -(sigma[0]*wBJ[2]+sigma[2]*wBJ[3]); //v21
-			dv[i+4*Q] = -(sigma[2]*wBJ[2]+sigma[3]*wBJ[3]); //v22
-
-			//??? dv[i+5*Q] = -sigma[3]; //v33
+			dv[i+2*Q] = dvterm[1][0];
+			dv[i+3*Q] = dvterm[1][1];
 
 
 			}//end 2d foor loop
@@ -395,14 +416,14 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 			const CeedScalar u[3] = { disp[i+0*Q], disp[i+1*Q], dis[i+2*Q] };
 
 			//Grad Displacement
-			const CeedScalar du[9] = { 	graddisp[i+0*Q], graddisp[i+1*Q], graddisp[i+2*Q],
-										graddisp[i+3*Q], graddisp[i+4*Q], graddisp[i+5*Q],
-										graddisp[i+6*Q], graddisp[i+7*Q], graddisp[i+8*Q] };
+			const CeedScalar du[3][3] = { 	{graddisp[i+0*Q], graddisp[i+1*Q], graddisp[i+2*Q]},
+											{graddisp[i+3*Q], graddisp[i+4*Q], graddisp[i+5*Q]},
+											{graddisp[i+6*Q], graddisp[i+7*Q], graddisp[i+8*Q]} };
 
 			//jacobian/coordinate transform data
-			const CeedScalar wBJ[9] = {	qdata[i+0*Q], qdata[i+1*Q], qdata[i+2*Q],
-										qdata[i+3*Q], qdata[i+4*Q], qdata[i+5*Q],
-										qdata[i+6*Q], qdata[i+7*Q], qdata[i+8*Q] };
+			const CeedScalar wJ[3][3] = {	{qdata[i+0*Q], qdata[i+1*Q], qdata[i+2*Q]},
+											{qdata[i+3*Q], qdata[i+4*Q], qdata[i+5*Q]},
+											{qdata[i+6*Q], qdata[i+7*Q], qdata[i+8*Q]} };
 
 			//------------------------------------
 			//Full Symmetric 3x3 Matrix Notation (less efficient, more readable, follows notation from Taylor's Classical Mechanics)		
@@ -411,19 +432,21 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 
 				
 				//Strain Tensor 
-				const CeedScalar E[9] = {		du[0], 			.5*(du[1]+du[3]), 	.5*(du[2]+du[6]),
-											.5*(du[1]+du[3]), 		du[4], 			.5*(du[5]+du[7]),
-											.5*(du[2]+du[6]), 	.5*(du[5]+du[7]), 		du[8] 			};
+				const CeedScalar E[3][3] = {{		du[0][0], 			.5*(du[0][1]+du[1][0]), 	.5*(du[0][2]+du[2][0])	},
+											{.5*(du[0][1]+du[1][0]), 		du[1][1], 				.5*(du[1][2]+du[2][1])	},
+											{.5*(du[0][2]+du[2][0]), 	.5*(du[1][2]+du[2][1]), 		du[2][2]			}};
 
 				//Spherical Part
-				const CeedScalar e = (1/3)*(E[0]+E[4]+E[8]);
+				const CeedScalar e = (1/3)*(E[0][0]+E[1][1]+E[2][2]);
 
 				//Deviatoric Part (not necessary for 2nd version of stress tensor)
 				/*
-				const CeedScalar Ep[9] = { 	E[0]-e, E[1], E[2],
-											E[3], E[4]-e, E[5],
-											E[6], E[7], E[8]-e,	};
+				const CeedScalar Ep[3][3] = E;
+				for(int j = 0; j<3; j++){
+					Ep[j][j] -= e;
+				}
 				*/
+				
 
 
 				//Relate Stress and Strain Tensors
@@ -434,14 +457,27 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 
 				//Stress Tensor
 				/*
-				const CeedScalar Sigma[9] = {	a*e + b*Ep[0], 		b*Ep[1], 				b*Ep[2],
-												b*Ep[3], 			a*e + b*Ep[4], 			b*Ep[5],
-												b*Ep[6], 			b*Ep[7],				a*e + b*Ep[8] };
+				const CeedScalar sigma[3][3] = {{	(a-b)*e + b*E[0][0], 	b*E[0][1], 				b*E[0][2]				},
+												{	b*E[1][0], 				(a-b)*e + b*E[1][1], 	b*E[1][2]				},
+												{	b*E[2][0], 				b*E[2][1],				(a-b)*e + b*E[2][2]		}};
 				*/
 
-				const CeedScalar Sigma[9] = {	(a-b)*e + b*E[0], 	b*E[1], 			b*E[2],
-												b*E[3], 			(a-b)*e + b*E[4], 	b*E[5],
-												b*E[6], 			b*E[7],				(a-b)*e + b*E[8] };
+				const CeedScalar sigma[3][3] = E;
+
+				for(int j = 0; j<3; j++){
+					for(int k = 0;, k<3; k++){
+						sigma[j][k] *= b;
+						if(j==k){sigma[j][k] += (a-b)*e;}
+					}
+				}
+
+				const CeedScalar dvterms[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+
+				for(int j = 0; j<3; j++){
+					for(int k = 0;, k<3; k++){
+						dvterms[j][k] -= sigma[j][k]*wJ[k][j];
+					}
+				}
 
 				//set outputs
 
@@ -449,19 +485,20 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 				v[i+0*Q] = 0;
 				v[i+1*Q] = 0;
 				v[i+2*Q] = 0;
-			
+				
+				//*** can use small loops over dimension 
 				//-sigmaij*vi,j
-				dv[i+0*Q] = -(sigma[0]*wBJ[0]+sigma[3]*wBJ[1]+sigma[6]*wBJ[2]);
-				dv[i+1*Q] = -(sigma[1]*wBJ[0]+sigma[4]*wBJ[1]+sigma[7]*wBJ[2]);
-				dv[i+2*Q] = -(sigma[2]*wBJ[0]+sigma[5]*wBJ[1]+sigma[8]*wBJ[2]);
+				dv[i+0*Q] = dvterms[0][0];
+				dv[i+1*Q] = dvterms[0][1];
+				dv[i+2*Q] = dvterms[0][2];
 
-				dv[i+3*Q] = -(sigma[0]*wBJ[3]+sigma[3]*wBJ[4]+sigma[6]*wBJ[5]);
-				dv[i+4*Q] = -(sigma[1]*wBJ[3]+sigma[4]*wBJ[4]+sigma[7]*wBJ[5]);
-				dv[i+5*Q] = -(sigma[2]*wBJ[3]+sigma[5]*wBJ[4]+sigma[8]*wBJ[5]);
+				dv[i+3*Q] = dvterms[1][0];
+				dv[i+4*Q] = dvterms[1][1];
+				dv[i+5*Q] = dvterms[1][2];
 
-				dv[i+6*Q] = -(sigma[0]*wBJ[6]+sigma[3]*wBJ[7]+sigma[6]*wBJ[8]);
-				dv[i+7*Q] = -(sigma[1]*wBJ[6]+sigma[4]*wBJ[7]+sigma[7]*wBJ[8]);
-				dv[i+8*Q] = -(sigma[2]*wBJ[6]+sigma[5]*wBJ[7]+sigma[8]*wBJ[8]);
+				dv[i+6*Q] = dvterms[2][0];
+				dv[i+7*Q] = dvterms[2][1];
+				dv[i+8*Q] = dvterms[2][2];
 
 			}//end full symetric 3x3 matrix notation
 
@@ -473,12 +510,12 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 				
 				//Strain Tensor 
 				const CeedScalar E[6] = {	
-											du[0],
-											du[4],
-											du[8],
-											.5*(du[5]+du[7]),
-											.5*(du[2]+du[6]),
-											.5*(du[1]+du[3]),
+											du[0][0],
+											du[1][1],
+											du[2][2],
+											.5*( du[1][2]+ du[2][1] ),
+											.5*( du[0][2]+ du[2][0] ),
+											.5*( du[0][1]+ du[1][0] ),
 										};
 								
 
@@ -487,15 +524,37 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 				const CeedScalar mu = context.SM;
 				const CeedScalar lam = context.BM - (2/3)*context.SM;
 
+				const CeedScalar Dij[6][6] = 	{{	2*mu+lam		lam			lam			0	0	0	0	},
+												{	lam				2*mu+lam	lam			0	0	0	0	},
+												{	lam				lam			2*mu+lam	0	0	0	0	},
+												{	0				0			0			mu 	0	0	0	},
+												{	0				0			0			0 	mu	0	0	},
+												{	0				0			0			0 	0	mu	0	},
+												{	0				0			0			0 	0	0	mu 	}};
+
 				//Stress Tensor
-				const CeedScalar sigma[6] = { 	
-												(2*mu+lam)*E[0] + lam*E[1] + lam*E[2],
-												lam*E[0] + (2*mu+lam)*E[1] + lam*E[2],
-												lam*E[0] + lam*E[1] + (2*mu+lam)*E[2],
-												mu*E[3],
-												mu*E[4],
-												mu*E[5]	
-											};
+				const CeedScalar sigma[6];
+
+				for(int j=0; j<6; j++){
+					sigma[j] = 0;
+					for(int k = 0; k<6; k++){
+						sigma[j] += Dij[j][k]*E[k];
+					}
+				}
+
+				const CeedScalar sigma2[3][3] ={{sigma[0], sigma[5], sigma[4]},
+												{sigma[5], sigma[1], sigma[3]},
+												{sigma[4], sigma[3], sigma[2]}}
+
+
+
+				const CeedScalar dvterms[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+
+				for(int j = 0; j<3; j++){
+					for(int k = 0;, k<3; k++){
+						dvterms[j][k] -= sigma[j][k]*wJ[k][j];
+					}
+				}
 
 				//set outputs
 
@@ -505,17 +564,17 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 				v[i+2*Q] = 0;
 			
 				//-sigmaij*vi,j
-				dv[i+0*Q] = -(sigma[0]*wBJ[0]+sigma[5]*wBJ[1]+sigma[4]*wBJ[2]);
-				dv[i+1*Q] = -(sigma[5]*wBJ[0]+sigma[1]*wBJ[1]+sigma[3]*wBJ[2]);
-				dv[i+2*Q] = -(sigma[4]*wBJ[0]+sigma[3]*wBJ[1]+sigma[2]*wBJ[2]);
+				dv[i+0*Q] = dvterms[0][0];
+				dv[i+1*Q] = dvterms[0][1];
+				dv[i+2*Q] = dvterms[0][2];
 
-				dv[i+3*Q] = -(sigma[0]*wBJ[3]+sigma[5]*wBJ[4]+sigma[4]*wBJ[5]);
-				dv[i+4*Q] = -(sigma[5]*wBJ[3]+sigma[1]*wBJ[4]+sigma[3]*wBJ[5]);
-				dv[i+5*Q] = -(sigma[4]*wBJ[3]+sigma[3]*wBJ[4]+sigma[2]*wBJ[5]);
+				dv[i+3*Q] = dvterms[1][0];
+				dv[i+4*Q] = dvterms[1][1];
+				dv[i+5*Q] = dvterms[1][2];
 
-				dv[i+6*Q] = -(sigma[0]*wBJ[6]+sigma[5]*wBJ[7]+sigma[4]*wBJ[8]);
-				dv[i+7*Q] = -(sigma[5]*wBJ[6]+sigma[1]*wBJ[7]+sigma[3]*wBJ[8]);
-				dv[i+8*Q] = -(sigma[4]*wBJ[6]+sigma[3]*wBJ[7]+sigma[2]*wBJ[8]);
+				dv[i+6*Q] = dvterms[2][0];
+				dv[i+7*Q] = dvterms[2][1];
+				dv[i+8*Q] = dvterms[2][2];
 
 			}//end voigt notation
 
@@ -529,6 +588,17 @@ static int IsotropicLinearElasticity(void *ctx, CeedInt Q, const CeedScalar *con
 
 return 0;
 }///end IsotropicLinearElasticity definition
+
+
+class pylith::fekernels::IsotropicLinearElasticityCEED {
+
+public:
+
+	static void CEED_integrate();
+
+
+};
+
 
 
 
