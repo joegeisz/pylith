@@ -16,7 +16,8 @@
  * ----------------------------------------------------------------------
  */
 
-#include <portinfo>
+
+
 
 #include "IsotropicLinearElasticity.hh" // Implementation of object methods
 

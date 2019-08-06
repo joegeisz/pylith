@@ -456,6 +456,7 @@ pylith::feassemble::IntegratorDomain::_computeDerivedField(const PylithReal t,
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Compute residual using current kernels.
+
 void
 pylith::feassemble::IntegratorDomain::_computeResidual(pylith::topology::Field* residual,
                                                        const std::vector<ResidualKernels>& kernels,

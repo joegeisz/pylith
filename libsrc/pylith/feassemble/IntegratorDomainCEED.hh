@@ -20,6 +20,9 @@
 #define pylith_feassemble_integratordomain_ceed_hh
 
 #include "pylith/feassemble/IntegratorDomain.hh" //
+#include <ceed.h>
+#include "pylith/fekernels/IsotropicLinearElasticityCEED.hh"//uses context classes
+
 
 class pylith::feassemble::IntegratorDomainCEED : public pylith::feassemble::IntegratorDomain {
     friend class TestIntegratorDomain; // unit testing
@@ -30,8 +33,27 @@ public:
 	/// Constructor
     IntegratorDomainCEED(pylith::problems::Physics* const physics);
 
+    /// Destructor
+    ~IntegratorDomainCEED(void);
+
     /// Initialize
     void initialize(const pylith::topology::Field& solution);
+
+
+    //
+    void _computeResidual(pylith::topology::Field* residual,
+				    	const std::vector<ResidualKernels>& kernels, 
+				    	const PylithReal t,
+				    	const PylithReal dt,
+				    	const pylith::topology::Field& solution,
+				    	const pylith::topology::Field& solutionDot);
+
+    //Ceed objects
+    CeedOperator op;
+
+	//contexts
+	CoordinatesContext setupcontext;
+	ProblemContext physicscontext;
 
 }; // IntegratorDomainCEED
 

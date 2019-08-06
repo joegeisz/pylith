@@ -597,7 +597,7 @@ class pylith::fekernels::IsotropicLinearElasticityCEED {
 
 public:
 
-	static void CEED_integrate(int dim);
+	static void qfunction_setup(int dim);
 
 
 };

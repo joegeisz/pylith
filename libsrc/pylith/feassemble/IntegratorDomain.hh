@@ -314,6 +314,9 @@ protected:
                           const pylith::topology::Field& solution,
                           const pylith::topology::Field& solutionDot);
 
+    int _materialId;
+    pylith::topology::Mesh* _materialMesh; ///< Mesh associated with material.
+
     // PRIVATE MEMBERS /////////////////////////////////////////////////////////////////////////////////////////////////
 private:
 
@@ -326,8 +329,7 @@ private:
     std::vector<ProjectKernels> _kernelsUpdateStateVars; ///< kernels for updating state variables.
     std::vector<ProjectKernels> _kernelsDerivedField; ///< kernels for computing derived field.
 
-    int _materialId;
-    pylith::topology::Mesh* _materialMesh; ///< Mesh associated with material.
+   
 
     pylith::feassemble::UpdateStateVars* _updateState; ///< Data structure for layout needed to update state vars.
 
