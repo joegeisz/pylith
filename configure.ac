@@ -114,7 +114,7 @@ CIT_HEADER_MPI
 
 # PETSC
 AC_LANG(C)
-CIT_PATH_PETSC([3.11.2])
+CIT_PATH_PETSC([3.11.3])
 CIT_HEADER_PETSC
 CIT_CHECK_LIB_PETSC
 
@@ -197,6 +197,13 @@ AC_REQUIRE_CPP
 AC_LANG(C)
 CIT_PROJ4_HEADER
 CIT_PROJ4_LIB
+
+# libCEED
+AC_ARG_ENABLE([ceed],
+    AS_HELP_STRING([--enable-ceed], [Enable libCEED for domain integration]))
+AS_IF([test "x$enable_ceed" = "xyes"],
+      [PKG_CHECK_MODULES([CEED], [ceed >= 0.4])])
+AM_CONDITIONAL([ENABLE_CEED], [test "x$enable_ceed" = "xyes"])
 
 # PYTHIA
 CIT_PYTHON_MODULE([pyre],[0.8.1])

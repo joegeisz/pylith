@@ -51,7 +51,6 @@ libpylith_la_SOURCES = \
 	feassemble/PhysicsImplementation.cc \
 	feassemble/Integrator.cc \
 	feassemble/IntegratorDomain.cc \
-	feassemble/IntegratorDomainCEED.cc \
 	feassemble/IntegratorBoundary.cc \
 	feassemble/IntegratorInterface.cc \
 	feassemble/UpdateStateVars.cc \
@@ -62,7 +61,6 @@ libpylith_la_SOURCES = \
 	feassemble/AuxiliaryFactory.cc \
 	fekernels/Elasticity.cc \
 	fekernels/IsotropicLinearElasticity.cc \
-	fekernels/IsotropicLinearElasticityCEED.cc \
 	fekernels/Viscoelasticity.cc \
 	fekernels/IsotropicLinearMaxwell.cc \
 	fekernels/IsotropicLinearGenMaxwell.cc \
@@ -163,6 +161,14 @@ if ENABLE_HDF5
 	meshio/DataWriterHDF5.cc \
 	meshio/DataWriterHDF5Ext.cc
   libpylith_la_LIBADD += -lhdf5
+endif
+
+if ENABLE_CEED
+  libpylith_la_SOURCES += \
+        feassemble/IntegratorDomainCEED.cc \
+	fekernels/IsotropicLinearElasticityCEED.cc
+  libpylith_la_LIBADD += $(CEED_LIBS)
+  AM_CPPFLAGS += -DENABLE_CEED $(CEED_CFLAGS)
 endif
 
 if ENABLE_CUBIT

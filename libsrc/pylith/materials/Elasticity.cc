@@ -155,8 +155,9 @@ pylith::materials::Elasticity::createIntegrator(const pylith::topology::Field& s
     PetscBool use_ceed = PETSC_FALSE;
     PetscOptionsGetBool(NULL,NULL,"-elasticity_ceed",&use_ceed,NULL);
     if (use_ceed) {
+#if defined(ENABLE_CEED)
         pylith::feassemble::IntegratorDomainCEED* integrator = new pylith::feassemble::IntegratorDomainCEED(this);assert(integrator);
-        
+
         integrator->setMaterialId(getMaterialId());
 
         _setKernelsRHSResidual(integrator, solution);
@@ -167,7 +168,9 @@ pylith::materials::Elasticity::createIntegrator(const pylith::topology::Field& s
         _setKernelsDerivedField(integrator, solution);
 
         PYLITH_METHOD_RETURN(integrator);
-
+#else
+        throw std::runtime_error("Configure with '--enable-ceed' to use libCEED.");
+#endif
     } else {
         pylith::feassemble::IntegratorDomain* integrator = new pylith::feassemble::IntegratorDomain(this);assert(integrator);
 
