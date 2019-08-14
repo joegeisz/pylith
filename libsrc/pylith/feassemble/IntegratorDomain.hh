@@ -287,7 +287,7 @@ protected:
      * @param[in] solution Field with current trial solution.
      * @param[in] solutionDot Field with time derivative of current trial solution.
      */
-    void _computeResidual(pylith::topology::Field* residual,
+    virtual void _computeResidual(pylith::topology::Field* residual,
                           const std::vector<ResidualKernels>& kernels,
                           const PylithReal t,
                           const PylithReal dt,

@@ -33,12 +33,16 @@
 
 // Utility function to create local CEED restriction
 static int CreateRestrictionFromPlex(Ceed ceed, DM dm, CeedInt P,
-                                     CeedElemRestriction *Erestrict) {
+                                     CeedElemRestriction *Erestrict, CeedInt dim) {
 
   PetscSection   section;
   PetscInt       c, cStart, cEnd, Nelem, Ndof, *erestrict, eoffset, nfields;
-  PetscInt       ierr;
+  PetscInt       ierr, pp;
   Vec Uloc;
+
+  if(dim == 2){pp=P*P;}
+  else if (dim == 3){pp=P*P*P;}
+  else{printf("dimension error in CreateRestrictionFromPlex\n");}
 
   PetscFunctionBeginUser;
   ierr = DMGetDefaultSection(dm,&section);CHKERRQ(ierr);
@@ -52,7 +56,7 @@ static int CreateRestrictionFromPlex(Ceed ceed, DM dm, CeedInt P,
 
   ierr = DMPlexGetHeightStratum(dm,0,&cStart,&cEnd);CHKERRQ(ierr);
   Nelem = cEnd - cStart;
-  ierr = PetscMalloc1(Nelem*P*P*P, &erestrict);CHKERRQ(ierr);
+  ierr = PetscMalloc1(Nelem*pp, &erestrict);CHKERRQ(ierr);
   for (c=cStart,eoffset=0; c<cEnd; c++) {
     PetscInt numindices, *indices, nnodes;
     ierr = DMPlexGetClosureIndices(dm,section,section,c,&numindices,&indices,NULL);CHKERRQ(ierr);
@@ -75,11 +79,11 @@ static int CreateRestrictionFromPlex(Ceed ceed, DM dm, CeedInt P,
     }
     ierr = DMPlexRestoreClosureIndices(dm,section,section,c,&numindices,&indices,NULL);CHKERRQ(ierr);
   }
-  if (eoffset != Nelem*P*P*P) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_LIB,"ElemRestriction of size (%D,%D) initialized %D nodes",Nelem,P*P*P,eoffset);
+  if (eoffset != Nelem*pp) SETERRQ3(PETSC_COMM_SELF,PETSC_ERR_LIB,"ElemRestriction of size (%D,%D) initialized %D nodes",Nelem,pp,eoffset);
   ierr = DMGetLocalVector(dm, &Uloc);CHKERRQ(ierr);
   ierr = VecGetLocalSize(Uloc, &Ndof);CHKERRQ(ierr);
   ierr = DMRestoreLocalVector(dm, &Uloc);CHKERRQ(ierr);
-  CeedElemRestrictionCreate(ceed, Nelem, P*P*P, Ndof/fieldoff[nfields], fieldoff[nfields],
+  CeedElemRestrictionCreate(ceed, Nelem, pp, Ndof/fieldoff[nfields], fieldoff[nfields],
                             CEED_MEM_HOST, CEED_COPY_VALUES, erestrict, Erestrict);
   ierr = PetscFree(erestrict);CHKERRQ(ierr);
   PetscFunctionReturn(0);
@@ -126,15 +130,11 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
 
     printf("initialize IntegratorDomainCEED\n");
 
-    /*
-	variables needed:
-		dim
-    */
 
 
     //hard-coded- todo: find how to get these
 	char ceedresource[4096] = "/cpu/self";
-	PetscInt degree = 3;
+	PetscInt degree = 1;
 	PetscInt qextra = 2;
 	PetscInt dim = 2;
 
@@ -148,6 +148,20 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
 	PetscVec localcoords;
 	PetscInt numP = degree + 1;
 	PetscInt numQ = numP + qextra;
+  PetscInt Qs = numQ;
+  PetscInt jacobiansize = 0;
+
+  if(dim == 2){
+    Qs=numQ*numQ;
+    jacobiansize = 4;
+  }
+  else if(dim == 3){
+    Qs=numQ*numQ*numQ;
+    jacobiansize = 9;
+  }
+  else{
+    printf("dimension is wrong\n");
+  }
 
 
 	///setup CEED
@@ -166,34 +180,41 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
     pylith::topology::CoordsVisitor::optimizeClosure(_materialMesh->dmMesh());
 	*/
 
+  //this->IntegratorDomain::initialize(solution);
+
+
+
+
 	PetscDM dmSoln = solution.dmMesh();
+  //or =  _materialMesh->dmMesh();???
+
 
 	DMGetCoordinatesLocal(dmSoln, &localcoords);
 	CreateVectorFromPetscVec(ceed,localcoords,&localcoordsceed);
-	//or = _materialMesh->dmMesh() ???
 
-	///setup Restrictions
 
-	///setup vector for qdata
+	///setup Restrictions/setup vector for qdata
+
 	CeedInt Nqpts;
 	PetscInt localNelem, End, Start;
-	CreateRestrictionFromPlex(ceed, dmSoln, degree + 1, &restrictq);
-	CreateRestrictionFromPlex(ceed, dmSoln, degree + 1, &restrictx);
+	CreateRestrictionFromPlex(ceed, dmSoln, degree + 1, &restrictq, dim);
+	CreateRestrictionFromPlex(ceed, dmSoln, degree + 1, &restrictx, dim);
 	DMPlexGetHeightStratum(dmSoln, 0, &Start, &End);
 	localNelem = End - Start;
-  	CeedBasisGetNumQuadraturePoints(basis, &Nqpts);
-	CeedVectorCreate(ceed, 9*localNelem*Nqpts ,&qdata);
+  CeedBasisGetNumQuadraturePoints(basis, &Nqpts);
+
+
+	CeedVectorCreate(ceed, jacobiansize*localNelem*Nqpts ,&qdata);
 	CeedElemRestrictionCreateVector(restrictq, &q0ceed, NULL);
 	CeedElemRestrictionCreateVector(restrictq, &mceed, NULL);
 	CeedElemRestrictionCreateVector(restrictq, &onesvec, NULL);
 	CeedVectorSetValue(onesvec,1.0);
-  	CeedElemRestrictionCreateVector(restrictx, &xceed, NULL);
-
-  	CeedElemRestrictionCreateIdentity(ceed, localNelem, 9*numQ*numQ*numQ,
-                                    9*localNelem*numQ*numQ*numQ, 1,
+  CeedElemRestrictionCreateVector(restrictx, &xceed, NULL);
+  CeedElemRestrictionCreateIdentity(ceed, localNelem, jacobiansize*Qs,
+                                    jacobiansize*localNelem*Qs, 1,
                                     &restrictqdi);
-  	CeedElemRestrictionCreateIdentity(ceed, localNelem, numQ*numQ*numQ,
-                                    localNelem*numQ*numQ*numQ, 1,
+  CeedElemRestrictionCreateIdentity(ceed, localNelem, Qs,
+                                    localNelem*Qs, 1,
                                     &restrictxi);
 
 
@@ -207,15 +228,15 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
 	///Setup mass Qfunction
 	CeedQFunctionCreateInterior(ceed, 1, ApplyMass, __FILE__":ApplyMass", &qf_mass);
 	CeedQFunctionAddInput(qf_mass,"u", dim, CEED_EVAL_INTERP);
-	CeedQFunctionAddInput(qf_mass,"w", dim*dim, CEED_EVAL_NONE);
+	CeedQFunctionAddInput(qf_mass,"qdata", dim*dim, CEED_EVAL_NONE);
 	CeedQFunctionAddOutput(qf_mass,"v", dim, CEED_EVAL_INTERP );
 
 	///Setup physics Qfunction
 	CeedQFunctionCreateInterior(ceed, 1, IsotropicLinearElasticityQFunction, __FILE__":IsotropicLinearElasticityQFunction", &qf_physics);
-	CeedQFunctionAddInput(qf_mass, "disp", dim, CEED_EVAL_INTERP);
-	CeedQFunctionAddInput(qf_mass, "graddisp", dim*dim, CEED_EVAL_NONE);
-	CeedQFunctionAddOutput(qf_mass, "v", dim, CEED_EVAL_INTERP);
-	CeedQFunctionAddOutput(qf_mass, "dv", dim*dim, CEED_EVAL_GRAD);
+	CeedQFunctionAddInput(qf_physics, "disp", dim, CEED_EVAL_INTERP);
+	CeedQFunctionAddInput(qf_physics, "graddisp", dim*dim, CEED_EVAL_NONE);
+	CeedQFunctionAddOutput(qf_physics, "v", dim, CEED_EVAL_INTERP);
+	CeedQFunctionAddOutput(qf_physics, "dv", dim*dim, CEED_EVAL_GRAD);
 
 
 	///operator for setup
@@ -241,14 +262,18 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
 	//setup context todo: don't hardcode these!
 	setupcontext.dim = dim;
 	physicscontext.dim = dim;
-	physicscontext.BM = 0;
-	physicscontext.SM = 0;
+	physicscontext.BM = 1;
+	physicscontext;
+
+
+  CeedQFunctionSetContext(qf_setup, &setupcontext, sizeof setupcontext);
+  CeedQFunctionSetContext(qf_mass, &setupcontext, sizeof setupcontext);
+  CeedQFunctionSetContext(qf_physics, &physicscontext, sizeof physicscontext);
 
 
 	//todo: apply setup and mass operators
-	CeedOperatorApply(op_setup,localcoordsceed,qdata,CEED_REQUEST_IMMEDIATE);
+	CeedOperatorApply(op_setup,localcoordsceed, qdata, CEED_REQUEST_IMMEDIATE);
 	CeedOperatorApply(op_mass, onesvec, mceed, CEED_REQUEST_IMMEDIATE);
-
 
 
 	//clean up
@@ -264,8 +289,6 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
 	CeedOperatorDestroy(&op_mass);
 	CeedDestroy(&ceed);
 
-
-    //this->IntegratorDomain::initialize(solution);
 
 }; // initialize
 
