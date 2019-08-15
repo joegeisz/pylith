@@ -61,6 +61,7 @@ Output:
 */
 static int Setup(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *const *out) {
 
+	printf("in setup\n");
 	//name the parameters from ctx
 	struct CoordinatesContext *context = (struct CoordinatesContext *)ctx;
 	//...
@@ -168,6 +169,8 @@ Output:
 */
 static int ApplyMass(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *const *out) {
 
+
+	printf("in apply mass\n");
 	//name the parameters from ctx
 	struct CoordinatesContext *context = (struct CoordinatesContext *)ctx;
 	//...
@@ -322,6 +325,7 @@ Math:
 
 static int IsotropicLinearElasticityQFunction(void *ctx, CeedInt Q, const CeedScalar *const *in, CeedScalar *const *out) {
 
+	printf("in physics\n");
 	//name the parameters from ctx
 	struct ProblemContext *context = (struct ProblemContext *)ctx;
 	//...

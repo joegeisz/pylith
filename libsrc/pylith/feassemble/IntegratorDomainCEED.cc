@@ -179,9 +179,9 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
     _materialMesh = pylith::topology::MeshOps::createSubdomainMesh(solution.mesh(), "material-id", _materialId, ":UNKOWN:");
     pylith::topology::CoordsVisitor::optimizeClosure(_materialMesh->dmMesh());
 	*/
-
-  //this->IntegratorDomain::initialize(solution);
-
+  printf("before init\n");
+  this->IntegratorDomain::initialize(solution);
+  printf("after init\n");
 
 
 
@@ -270,7 +270,7 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
   CeedQFunctionSetContext(qf_mass, &setupcontext, sizeof setupcontext);
   CeedQFunctionSetContext(qf_physics, &physicscontext, sizeof physicscontext);
 
-
+  printf("after setup\n");
 	//todo: apply setup and mass operators
 	CeedOperatorApply(op_setup,localcoordsceed, qdata, CEED_REQUEST_IMMEDIATE);
 	CeedOperatorApply(op_mass, onesvec, mceed, CEED_REQUEST_IMMEDIATE);
@@ -278,17 +278,20 @@ pylith::feassemble::IntegratorDomainCEED::initialize(const pylith::topology::Fie
 
 	//clean up
 	CeedBasisDestroy(&basis);
+  printf("A\n");
 	CeedElemRestrictionDestroy(&restrictx);
 	CeedElemRestrictionDestroy(&restrictxi);	
 	CeedElemRestrictionDestroy(&restrictq);
 	CeedElemRestrictionDestroy(&restrictqdi);
+  printf("B\n");
 	CeedQFunctionDestroy(&qf_setup);
 	CeedQFunctionDestroy(&qf_mass);
 	CeedQFunctionDestroy(&qf_physics);
 	CeedOperatorDestroy(&op_setup);
 	CeedOperatorDestroy(&op_mass);
+  printf("C\n");
 	CeedDestroy(&ceed);
-
+  printf("end of initialize\n");
 
 }; // initialize
 
@@ -301,6 +304,7 @@ pylith::feassemble::IntegratorDomainCEED::_computeResidual(pylith::topology::Fie
                                                        const pylith::topology::Field& solution,
                                                        const pylith::topology::Field& solutionDot) 
 {
+  printf("in compute residual\n");
     PYLITH_METHOD_BEGIN;
     PYLITH_JOURNAL_DEBUG("_computeResidual(residual="<<residual<<", # kernels="<<kernels.size()<<", t="<<t<<", dt="<<dt<<", solution="<<solution.label()<<", solutionDot="<<solutionDot.label()<<")");
 
